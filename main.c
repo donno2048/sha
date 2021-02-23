@@ -1,8 +1,14 @@
 #include <stdio.h>
-#include <time.h>
 #include <stdlib.h>
-#include <string.h>
 #define Swap(x) (((x >> 24) & 0xff) | ((x << 8) & 0xff0000) | ((x >> 8) & 0xff00) | ((x << 24) & 0xff000000))
+#define time _time
+#include <time.h>
+#undef time
+unsigned long time(){
+  unsigned long ts;
+  __clock_gettime(0, &ts);
+  return ts;
+}
 typedef struct {
     unsigned long digest[8];
     unsigned int lo;
@@ -93,6 +99,46 @@ void transform(SHA *_sha) {
     RND(ss[1], ss[2], ss[3], ss + 4, ss[5], ss[6], ss[7], ss + 0, 0xc67178f2, W);
     for(int i = 0; i < 8; i ++) _sha -> digest[i] = (_sha -> digest[i] + ss[i]) & 0xffffffff;
 }
+int strcmp(const char *p1, const char *p2){
+    const unsigned char *s1 = (const unsigned char *) p1;
+    const unsigned char *s2 = (const unsigned char *) p2;
+    unsigned char c1, c2;
+    do {
+        c1 = (unsigned char) *s1 ++;
+        c2 = (unsigned char) *s2 ++;
+        if (c1 == '\0') return c1 - c2;
+    } while (c1 == c2);
+    return c1 - c2;
+}
+unsigned long strlen(const char *str) {
+    const char *char_ptr;
+    const unsigned long int *longword_ptr;
+    unsigned long int longword, himagic, lomagic;
+    for(char_ptr = str; ((unsigned long int) char_ptr & (sizeof (longword) - 1)) != 0; ++ char_ptr) if (*char_ptr == '\0') return char_ptr - str;
+    longword_ptr = (unsigned long int *) char_ptr;
+    himagic = 0x80808080L;
+    lomagic = 0x01010101L;
+    if(sizeof(longword) > 4) {
+        himagic = ((himagic << 16) << 16) | himagic;
+        lomagic = ((lomagic << 16) << 16) | lomagic;
+    }
+    while(1) {
+        longword = *longword_ptr ++;
+        if (((longword - lomagic) & ~longword & himagic) != 0) {
+            const char *cp = (const char *) (longword_ptr - 1);
+            if(cp[0] == 0) return cp - str;
+            if(cp[1] == 0) return cp - str + 1;
+            if(cp[2] == 0) return cp - str + 2;
+            if(cp[3] == 0) return cp - str + 3;
+            if(sizeof(longword) > 4) {
+                if(cp[4] == 0) return cp - str + 4;
+                if(cp[5] == 0) return cp - str + 5;
+                if(cp[6] == 0) return cp - str + 6;
+                if(cp[7] == 0) return cp - str + 7;
+            }
+        }
+    }
+}
 void update(SHA *_sha, char *buffer){ //ToDo: Add support for non-ascii characters
     int count = strlen(buffer);
     int index = 0;
@@ -132,7 +178,7 @@ char *digest(char *s) {
     _sha.data[count ++] = 0x80;
     if(count > 56){
         transform(&_sha);
-        memset(_sha.data, 0, 64);
+        for(int i = 0; i < 64; i ++) _sha.data[i] = 0;
     }
     _sha.data[56] = (hi_bit_count >> 24) & 0xff;
     _sha.data[57] = (hi_bit_count >> 16) & 0xff;
@@ -159,7 +205,7 @@ char *hexdigest(char *s) {
     _sha.data[count ++] = 0x80;
     if(count > 56){
         transform(&_sha);
-        memset(_sha.data, 0, 64);
+        for(int i = 0; i < 64; i ++) _sha.data[i] = 0;
     }
     _sha.data[56] = (hi_bit_count >> 24) & 0xff;
     _sha.data[57] = (hi_bit_count >> 16) & 0xff;
@@ -199,29 +245,25 @@ char *process(int bits, int version, char *lastHash, char *merkleRoot){
     char blockData1[161];
     char target[65];
     char hexVersion[9];
-    char hexTime[9];
     char hexBits1[9];
     char hash[65];
     char *hashData = malloc(161);
     unsigned long nonce;
     sprintf(hexBits, "%.8x", Swap(bits));
     sprintf(target, "%x", bits & 0xffffff);
-    for(int p = 0; p < ((bits >> 24 << 1) - 6); p ++) strcat(target, "0");
-    while(strlen(target) < 64) sprintf(target, "%c%s", '0', target);
+    for(int p = 0; p < ((bits >> 24 << 1) - 6); p ++) sprintf(target, "%s0", target);
+    while(strlen(target) < 64) sprintf(target, "0%s", target);
     sprintf(hexVersion, "%.8x", Swap(version));
     sprintf(blockData1, "%s%s%s", hexVersion, SwapL(lastHash), SwapL(merkleRoot));
     while(1) {
         nonce = 0;
-        strcpy(blockData, blockData1);
-        sprintf(hexTime, "%.8lx", Swap((unsigned long) time(NULL)));
-        strcat(blockData, hexTime);
-        strcat(blockData, hexBits);
+        sprintf(blockData, "%s%.8lx%s", blockData1, Swap(time()), hexBits);
         do {
             if(nonce >= 1 << 24) sprintf(hashData, "%s%.8lx", blockData, Swap(nonce));
             else if(nonce >= 1 << 16) sprintf(hashData, "%s%.6lx", blockData, ((nonce >> 16) & 0xff) | (nonce & 0xff00) | ((nonce << 16) & 0xff0000));
             else if(nonce >= 1 << 8) sprintf(hashData, "%s%.4lx", blockData, ((nonce >> 8) & 0xff) | ((nonce << 8) & 0xff00));
             else sprintf(hashData, "%s%.2lx", blockData, nonce);
-            strcpy(hash, hexdigest(digest(unhexlify(hashData)))); //ToDo: Write as one function
+            sprintf(hash, "%s", hexdigest(digest(unhexlify(hashData)))); //ToDo: Write as one function
             if(strcmp(hash, target) <= 0) return hashData;
         } while(nonce ++ != 0xffffffffUL);
     }
