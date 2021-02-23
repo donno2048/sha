@@ -1,7 +1,5 @@
-#include <stdint.h>
 #include <stdio.h>
 #include <time.h>
-#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #define Swap(x) (((x >> 24) & 0xff) | ((x << 8) & 0xff0000) | ((x >> 8) & 0xff00) | ((x << 24) & 0xff000000))
@@ -22,7 +20,7 @@ void RND(int a, int b, int c, unsigned long *d, int e, int f, int g, unsigned lo
     *h = (t + (((((a & 0xffffffff) >> 2) | (a << 30)) & 0xffffffff) ^ ((((a & 0xffffffff) >> 13) | (a << 19)) & 0xffffffff) ^ ((((a & 0xffffffff) >> 22) | (a << 10)) & 0xffffffff)) + (((a | b) & c) | (a & b))) & 0xffffffff;
 }
 void transform(SHA *_sha) {
-    unsigned W[64] = {0};
+    unsigned long W[64] = {0};
     unsigned long ss[8];
     int d[64];
     for(int i = 0; i < 64; i ++) d[i] = _sha -> data[i];
