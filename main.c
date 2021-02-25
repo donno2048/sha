@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #define Swap(x) (((x >> 24) & 0xff) | ((x << 8) & 0xff0000) | ((x >> 8) & 0xff00) | ((x << 24) & 0xff000000))
 #define time _time
 #include <time.h>
@@ -99,7 +98,12 @@ void transform(SHA *_sha) {
     RND(ss[1], ss[2], ss[3], ss + 4, ss[5], ss[6], ss[7], ss + 0, 0xc67178f2, W);
     for(int i = 0; i < 8; i ++) _sha -> digest[i] = (_sha -> digest[i] + ss[i]) & 0xffffffff;
 }
-int strcmp(const char *p1, const char *p2){
+int atoi(char *str) {
+    int output = 0;
+    for (int i = 0; str[i] != '\0'; ++ i) output = output * 10 + str[i] - '0';
+    return output;
+}
+int strcmp(const char *p1, const char *p2) {
     const unsigned char *s1 = (const unsigned char *) p1;
     const unsigned char *s2 = (const unsigned char *) p2;
     unsigned char c1, c2;
@@ -226,11 +230,6 @@ int a2v(char c) {
     if ((c >= '0') && (c <= '9')) return c - '0';
     else return c - 'a' + 10;
 }
-char *unhexlify(char *hstr) {
-    char *bstr = malloc((strlen(hstr) / 2) + 1);
-    for (int i = 0; i < strlen(hstr); i += 2) {bstr[i/2] = (a2v(hstr[i]) << 4) + a2v(hstr[i + 1]);}
-    return bstr;
-}
 char *SwapL(char s[64]){
     static char o[65];
     for(int i = 0; i < 64; i += 2){
@@ -248,6 +247,7 @@ char *process(int bits, int version, char *lastHash, char *merkleRoot){
     char hexBits1[9];
     char hash[65];
     static char hashData[161];
+    char hashData1[81];
     unsigned long nonce;
     sprintf(hexBits, "%.8x", Swap(bits));
     sprintf(target, "%x", bits & 0xffffff);
@@ -263,7 +263,8 @@ char *process(int bits, int version, char *lastHash, char *merkleRoot){
             else if(nonce >= 1 << 16) sprintf(hashData, "%s%.6lx", blockData, ((nonce >> 16) & 0xff) | (nonce & 0xff00) | ((nonce << 16) & 0xff0000));
             else if(nonce >= 1 << 8) sprintf(hashData, "%s%.4lx", blockData, ((nonce >> 8) & 0xff) | ((nonce << 8) & 0xff00));
             else sprintf(hashData, "%s%.2lx", blockData, nonce);
-            sprintf(hash, "%s", hexdigest(digest(unhexlify(hashData)))); //ToDo: Write as one function
+            for (int i = 0; i < strlen(hashData); i += 2) hashData1[i/2] = (a2v(hashData[i]) << 4) + a2v(hashData[i + 1]);
+            sprintf(hash, "%s", hexdigest(digest(hashData1))); //ToDo: Write as one function
             if(strcmp(hash, target) <= 0) return hashData;
         } while(nonce ++ != 0xffffffffUL);
     }
