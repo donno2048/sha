@@ -169,7 +169,7 @@ void update(SHA *_sha, char *buffer){ //ToDo: Add support for non-ascii characte
     _sha -> local = count;
 }
 char *digest(char *s) {
-    char *returnValue = malloc(33);
+    static char returnValue[33];
     SHA _sha = sha256;
     if(s[0] != '\0') update(&_sha, s);
     int lo_bit_count = _sha.lo;
@@ -196,7 +196,7 @@ char *digest(char *s) {
     return returnValue;
 }
 char *hexdigest(char *s) {
-    char *returnValue = malloc(65);
+    static char returnValue[65];
     SHA _sha = sha256;
     if(s[0] != '\0') update(&_sha, s);
     int lo_bit_count = _sha.lo;
@@ -232,7 +232,7 @@ char *unhexlify(char *hstr) {
     return bstr;
 }
 char *SwapL(char s[64]){
-    char *o = malloc(65);
+    static char o[65];
     for(int i = 0; i < 64; i += 2){
         o[i] = s[62 - i];
         o[i + 1] = s[63 - i];
@@ -247,7 +247,7 @@ char *process(int bits, int version, char *lastHash, char *merkleRoot){
     char hexVersion[9];
     char hexBits1[9];
     char hash[65];
-    char *hashData = malloc(161);
+    static char hashData[161];
     unsigned long nonce;
     sprintf(hexBits, "%.8x", Swap(bits));
     sprintf(target, "%x", bits & 0xffffff);
